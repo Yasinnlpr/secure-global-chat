@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود به چت حرفه‌ای</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-header {
+            background: linear-gradient(to right, #4f46e5, #7c3aed);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .login-header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            opacity: 0.9;
+        }
+        
+        .login-body {
+            padding: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-weight: 500;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .input-group input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            outline: none;
+        }
+        
+        .error-message {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .error-message i {
+            font-size: 20px;
+        }
+        
+        .login-button {
+            width: 100%;
+            background: linear-gradient(to right, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .login-button:active {
+            transform: translateY(0);
+        }
+        
+        .guest-info {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        .guest-info p {
+            margin-bottom: 10px;
+        }
+        
+        .guest-accounts {
+            background-color: #f9fafb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .guest-account {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .guest-account:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .account-username {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .account-password {
+            color: #9ca3af;
+            font-family: monospace;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #9ca3af;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="login-header">
+            <h1><i class="fas fa-comments mr-2"></i>چت حرفه‌ای</h1>
+            <p>گفتگوی زنده با تماس صوتی و تصویری</p>
+        </div>
+        
+        <div class="login-body">
+            {% if error %}
+            <div class="error-message fade-in">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>{{ error }}</div>
+            </div>
+            {% endif %}
+            
+            <form method="POST" action="/login">
+                <div class="input-group">
+                    <label for="username"><i class="fas fa-user ml-1"></i> نام کاربری</label>
+                    <input type="text" id="username" name="username" placeholder="مثال: yasin" required autofocus>
+                </div>
+                
+                <div class="input-group">
+                    <label for="password"><i class="fas fa-lock ml-1"></i> رمز عبور</label>
+                    <input type="password" id="password" name="password" placeholder="رمز خود را وارد کنید" required>
+                </div>
+                
+                <button type="submit" class="login-button">
+                    <i class="fas fa-sign-in-alt ml-2"></i> ورود به چت
+                </button>
+            </form>
+            
+            <div class="guest-info">
+                <p><i class="fas fa-info-circle ml-1"></i> حساب‌های از پیش ساخته شده:</p>
+                <div class="guest-accounts">
+                    <div class="guest-account">
+                        <span class="account-username">یاسین (ادمین)</span>
+                        <span class="account-password">yasin.7734</span>
+                    </div>
+                    <div class="guest-account">
+                        <span class="account-username">لیلا</span>
+                        <span class="account-password">1365</span>
+                    </div>
+                    <div class="guest-account">
+                        <span class="account-username">زینب</span>
+                        <span class="account-password">1362</span>
+                    </div>
+                    <div class="guest-account">
+                        <span class="account-username">تسنیم</span>
+                        <span class="account-password">1388</span>
+                    </div>
+                </div>
+                <p class="text-sm mt-3">برای ورود به عنوان ادمین از حساب "yasin" استفاده کنید</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 چت حرفه‌ای - تمامی حقوق محفوظ است</p>
+        </div>
+    </div>
+    
+    <script>
+        // انیمیشن ورود
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('focus', () => {
+                    input.parentElement.classList.add('ring-2', 'ring-purple-300');
+                });
+                
+                input.addEventListener('blur', () => {
+                    input.parentElement.classList.remove('ring-2', 'ring-purple-300');
+                });
+            });
+            
+            // نمایش/پنهان کردن رمز عبور
+            const passwordInput = document.getElementById('password');
+            const passwordToggle = document.createElement('span');
+            passwordToggle.innerHTML = '<i class="fas fa-eye"></i>';
+            passwordToggle.className = 'absolute right-3 top-11 text-gray-400 cursor-pointer';
+            passwordInput.parentElement.style.position = 'relative';
+            passwordInput.parentElement.appendChild(passwordToggle);
+            
+            passwordToggle.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                passwordToggle.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+            });
+        });
+    </script>
+</body>
+</html>

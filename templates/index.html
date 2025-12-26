@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>چت حرفه‌ای • {{ display_name }}</title>
+    
+    <!-- آیکون‌های Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- ایموجی پیکر -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1.14.0/dist/emoji-picker-element.min.css" />
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1.14.0/dist/emoji-picker-element.min.js"></script>
+    
+    <!-- استایل‌های Tailwind (برای سرعت) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        :root {
+            --primary-color: #0088cc;
+            --secondary-color: #f0f0f0;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-message-self: #dcf8c6;
+            --bg-message-other: #ffffff;
+            --border-color: #e0e0e0;
+            --online-color: #44b700;
+            --typing-color: #0088cc;
+            --error-color: #ff3b30;
+            --success-color: #34c759;
+        }
+        
+        .dark-mode {
+            --primary-color: #2aabee;
+            --secondary-color: #2d2d2d;
+            --text-primary: #e1e3e6;
+            --text-secondary: #828282;
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2d2d2d;
+            --bg-message-self: #2b5278;
+            --bg-message-other: #182533;
+            --border-color: #3d3d3d;
+            --online-color: #44b700;
+            --typing-color: #2aabee;
+            --error-color: #ff453a;
+            --success-color: #32d74b;
+        }
+        
+        * {
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* اسکرول بار زیبا */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        /* انیمیشن‌ها */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        .slide-in-right {
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        /* استایل‌های مخصوص چت */
+        .message-self {
+            background-color: var(--bg-message-self);
+            border-radius: 18px 4px 18px 18px;
+            margin-left: auto;
+            margin-right: 10px;
+            max-width: 70%;
+        }
+        
+        .message-other {
+            background-color: var(--bg-message-other);
+            border-radius: 4px 18px 18px 18px;
+            margin-right: auto;
+            margin-left: 10px;
+            max-width: 70%;
+        }
+        
+        .message-reply {
+            border-right: 3px solid var(--primary-color);
+            padding-right: 8px;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--typing-color);
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        /* استایل نوتیفیکیشن */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+            z-index: 9999;
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        /* استایل زنگ تماس */
+        .call-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* استایل ایموجی پیکر */
+        .emoji-picker {
+            position: absolute;
+            bottom: 60px;
+            left: 10px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        /* استایل استیکر پیکر */
+        .sticker-picker {
+            position: absolute;
+            bottom: 60px;
+            right: 10px;
+            width: 300px;
+            height: 400px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .sticker-category {
+            margin-bottom: 15px;
+        }
+        
+        .sticker-category h4 {
+            margin-bottom: 5px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+        
+        .sticker-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        }
+        
+        .sticker-item {
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .sticker-item:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .sticker-item img {
+            width: 100%;
+            height: auto;
+        }
+        
+        /* رنگ‌بندی مختلف برای نام کاربران */
+        .username-color-1 { color: #0088cc; }
+        .username-color-2 { color: #34c759; }
+        .username-color-3 { color: #ff9500; }
+        .username-color-4 { color: #ff3b30; }
+        .username-color-5 { color: #af52de; }
+        .username-color-6 { color: #5856d6; }
+        .username-color-7 { color: #00c7be; }
+        .username-color-8 { color: #ff2d55; }
+        
+        /* ضبط صوت */
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--error-color);
+            font-weight: bold;
+        }
+        
+        .recording-dot {
+            width: 12px;
+            height: 12px;
+            background-color: var(--error-color);
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 {{ 'dark-mode' if theme == 'dark' else '' }}" data-theme="{{ theme }}">
+    
+    <!-- نوتیفیکیشن‌ها -->
+    <div id="notification-container"></div>
+    
+    <!-- زنگ تماس -->
+    <div id="call-alert" class="call-alert hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center max-w-md">
+            <div class="text-6xl mb-4 text-blue-500">
+                <i class="fas fa-phone-alt"></i>
+            </div>
+            <h3 class="text-2xl font-bold mb-2 text-gray-800 dark:text-white" id="caller-name">در حال تماس...</h3>
+            <p class="text-gray-600 dark:text-gray-300 mb-6" id="call-type">تماس صوتی</p>
+            <div class="flex gap-4 justify-center">
+                <button id="accept-call" class="bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-full text-lg font-bold">
+                    <i class="fas fa-phone"></i> پاسخ
+                </button>
+                <button id="reject-call" class="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-full text-lg font-bold">
+                    <i class="fas fa-phone-slash"></i> قطع
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- پنل سایدبار -->
+    <div class="flex h-screen">
+        <!-- سایدبار چپ -->
+        <div class="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+            <!-- هدر سایدبار -->
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-white">کاربران آنلاین</h2>
+                    <span id="online-count" class="bg-green-500 text-white text-xs px-2 py-1 rounded-full">0</span>
+                </div>
+                
+                {% if is_admin %}
+                <button id="admin-panel-toggle" class="w-full mb-4 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg">
+                    <i class="fas fa-user-cog mr-2"></i> پنل ادمین
+                </button>
+                {% endif %}
+                
+                <button id="new-private-chat" class="w-full mb-4 bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg">
+                    <i class="fas fa-comment-medical mr-2"></i> چت جدید
+                </button>
+                
+                <button id="theme-toggle" class="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white py-2 rounded-lg">
+                    <i class="fas fa-moon mr-2"></i> تغییر تم
+                </button>
+            </div>
+            
+            <!-- لیست کاربران آنلاین -->
+            <div id="online-users" class="flex-1 overflow-y-auto p-2">
+                {% for user in online_users %}
+                <div class="user-item p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 mb-2 cursor-pointer" data-username="{{ user.username }}">
+                    <div class="flex items-center">
+                        <div class="relative">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-500 dark:text-blue-300 font-bold">
+                                {{ user.display_name[:1] }}
+                            </div>
+                            <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                        </div>
+                        <div class="mr-3">
+                            <div class="font-medium text-gray-800 dark:text-white">{{ user.display_name }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ user.username }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- چت‌های خصوصی -->
+            <div class="border-t border-gray-200 dark:border-gray-700 p-4">
+                <h3 class="font-bold text-gray-800 dark:text-white mb-3">چت‌های خصوصی</h3>
+                <div id="private-chats" class="space-y-2">
+                    {% for chat in private_chats %}
+                    <div class="private-chat-item p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" data-room="{{ chat.room_id }}">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-500 dark:text-purple-300 font-bold text-sm">
+                                {{ chat.display_name[:1] }}
+                            </div>
+                            <div class="mr-3">
+                                <div class="font-medium text-gray-800 dark:text-white">{{ chat.display_name }}</div>
+                                {% if chat.last_message %}
+                                <div class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
+                                    {{ chat.last_message.message[:30] }}...
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- پنل ادمین (مخفی) -->
+            <div id="admin-panel" class="hidden p-4 border-t border-gray-200 dark:border-gray-700">
+                <h3 class="font-bold text-gray-800 dark:text-white mb-3">مدیریت کاربران</h3>
+                <div class="space-y-3">
+                    <input type="text" id="new-username" placeholder="نام کاربری انگلیسی" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                    <input type="password" id="new-password" placeholder="رمز عبور" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                    <input type="text" id="new-displayname" placeholder="نام نمایشی فارسی" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="new-isadmin" class="ml-2">
+                        <label for="new-isadmin" class="text-sm text-gray-600 dark:text-gray-400">دسترسی ادمین</label>
+                    </div>
+                    <button id="create-user-btn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded">
+                        ایجاد کاربر
+                    </button>
+                    <div id="admin-message" class="text-sm mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- خروج -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <form method="POST" action="/logout" id="logout-form">
+                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg">
+                        <i class="fas fa-sign-out-alt mr-2"></i> خروج
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- ناحیه اصلی چت -->
+        <div class="flex-1 flex flex-col">
+            <!-- هدر چت -->
+            <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div id="room-avatar" class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-500 dark:text-blue-300 font-bold text-xl">
+                            {{ display_name[:1] }}
+                        </div>
+                        <div class="mr-3">
+                            <h1 id="room-name" class="text-xl font-bold text-gray-800 dark:text-white">گفتگوی عمومی</h1>
+                            <div class="flex items-center">
+                                <div id="typing-indicator" class="text-sm text-blue-500 hidden">
+                                    <span class="typing-indicator">
+                                        <span></span>
+                                        <span></span>
+                                        <span></span>
+                                    </span>
+                                    در حال تایپ...
+                                </div>
+                                <div id="online-status" class="text-sm text-gray-500 dark:text-gray-400">
+                                    <span id="room-user-count">0</span> کاربر آنلاین
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <!-- دکمه‌های تماس -->
+                        <button id="voice-call-btn" class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800">
+                            <i class="fas fa-phone-alt text-lg"></i>
+                        </button>
+                        <button id="video-call-btn" class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800">
+                            <i class="fas fa-video text-lg"></i>
+                        </button>
+                        <button id="end-call-btn" class="p-3 rounded-full bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800 hidden">
+                            <i class="fas fa-phone-slash text-lg"></i>
+                        </button>
+                        
+                        <!-- سایر دکمه‌ها -->
+                        <div class="relative">
+                            <button id="more-options" class="p-3 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                                <i class="fas fa-ellipsis-v text-lg"></i>
+                            </button>
+                            <div id="more-menu" class="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hidden z-10">
+                                <button id="clear-chat" class="w-full text-right p-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-white">
+                                    <i class="fas fa-trash-alt ml-2"></i> پاک کردن چت
+                                </button>
+                                <button id="export-chat" class="w-full text-right p-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-white">
+                                    <i class="fas fa-download ml-2"></i> ذخیره گفتگو
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ناحیه پیام‌ها -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
+                <!-- پیام‌ها اینجا لود می‌شوند -->
+                <div id="messages-end"></div>
+            </div>
+            
+            <!-- ناحیه ورود پیام -->
+            <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+                <!-- ریپلای فعال -->
+                <div id="active-reply" class="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-r-4 border-blue-500 hidden">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-sm text-blue-600 dark:text-blue-300">
+                                <i class="fas fa-reply ml-1"></i> در حال پاسخ به
+                            </div>
+                            <div id="reply-preview" class="text-sm text-gray-600 dark:text-gray-400 truncate"></div>
+                        </div>
+                        <button id="cancel-reply" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- ویرایش فعال -->
+                <div id="active-edit" class="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-r-4 border-yellow-500 hidden">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-sm text-yellow-600 dark:text-yellow-300">
+                                <i class="fas fa-edit ml-1"></i> در حال ویرایش پیام
+                            </div>
+                            <div id="edit-preview" class="text-sm text-gray-600 dark:text-gray-400 truncate"></div>
+                        </div>
+                        <button id="cancel-edit" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- وضعیت ضبط -->
+                <div id="recording-status" class="mb-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg hidden">
+                    <div class="recording-indicator">
+                        <div class="recording-dot"></div>
+                        <span>در حال ضبط صوت...</span>
+                        <span id="recording-timer">0:00</span>
+                    </div>
+                    <button id="send-recording" class="mr-auto mt-2 bg-green-500 text-white px-4 py-1 rounded text-sm">
+                        <i class="fas fa-paper-plane ml-1"></i> ارسال
+                    </button>
+                </div>
+                
+                <!-- ابزارهای پیام -->
+                <div class="flex items-center gap-2 mb-3">
+                    <button id="emoji-btn" class="p-2 text-gray-500 hover:text-blue-500 dark:hover:text-blue-300">
+                        <i class="far fa-smile text-xl"></i>
+                    </button>
+                    <button id="sticker-btn" class="p-2 text-gray-500 hover:text-purple-500 dark:hover:text-purple-300">
+                        <i class="far fa-images text-xl"></i>
+                    </button>
+                    <button id="attach-btn" class="p-2 text-gray-500 hover:text-green-500 dark:hover:text-green-300">
+                        <i class="fas fa-paperclip text-xl"></i>
+                    </button>
+                    <input type="file" id="file-input" class="hidden" accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt">
+                    <button id="record-audio-btn" class="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-300">
+                        <i class="fas fa-microphone text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- ورودی پیام -->
+                <div class="flex gap-2">
+                    <input type="text" 
+                           id="message-input" 
+                           placeholder="پیام خود را بنویسید..." 
+                           class="flex-1 p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
+                           autocomplete="off">
+                    
+                    <button id="send-btn" class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-lg min-w-[50px]">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                
+                <!-- ایموجی پیکر -->
+                <div class="emoji-picker">
+                    <emoji-picker></emoji-picker>
+                </div>
+                
+                <!-- استیکر پیکر -->
+                <div class="sticker-picker">
+                    <div class="sticker-category">
+                        <h4>خنده‌دار</h4>
+                        <div class="sticker-grid">
+                            <div class="sticker-item"><img src="https://media.tenor.com/6xj3E3hZVUsAAAAi/party-parrot.gif" alt="sticker"></div>
+                            <div class="sticker-item"><img src="https://media.tenor.com/2roX3uxz_68AAAAC/cat-cute.gif" alt="sticker"></div>
+                            <div class="sticker-item"><img src="https://media.tenor.com/1qX4tWJvS9MAAAAC/pepe-happy.gif" alt="sticker"></div>
+                            <div class="sticker-item"><img src="https://media.tenor.com/j1VPozsFv_kAAAAi/bonk-meme.gif" alt="sticker"></div>
+                        </div>
+                    </div>
+                    <div class="sticker-category">
+                        <h4>احساسی</h4>
+                        <div class="sticker-grid">
+                            <div class="sticker-item"><img src="https://media.tenor.com/Gf3D0BiAducAAAAi/love-you.gif" alt="sticker"></div>
+                            <div class="sticker-item"><img src="https://media.tenor.com/QgC5GxPyT1wAAAAi/cute-sad.gif" alt="sticker"></div>
+                            <div class="sticker-item"><img src="https://media.tenor.com/t-Q3nSPkscUAAAAi/angry-panda.gif" alt="sticker"></div>
+                            <div class="sticker-item"><img src="https://media.tenor.com/mDfz8zQ6VJ8AAAAi/excited-jumping.gif" alt="sticker"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ویدیوهای WebRTC -->
+            <div id="video-container" class="hidden fixed bottom-4 left-4 z-50">
+                <div class="flex gap-4">
+                    <div class="relative">
+                        <video id="local-video" autoplay playsinline muted class="w-48 h-36 rounded-lg shadow-lg bg-black"></video>
+                        <div class="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">شما</div>
+                    </div>
+                    <div class="relative">
+                        <video id="remote-video" autoplay playsinline class="w-48 h-36 rounded-lg shadow-lg bg-black"></video>
+                        <div class="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">مقابل</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- پنل انتخاب کاربر برای چت خصوصی -->
+    <div id="user-select-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">انتخاب کاربر برای چت خصوصی</h3>
+            <div id="user-select-list" class="max-h-60 overflow-y-auto mb-4">
+                <!-- لیست کاربران اینجا لود می‌شود -->
+            </div>
+            <div class="flex gap-3">
+                <button id="start-private-chat" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg">
+                    شروع گفتگو
+                </button>
+                <button id="cancel-private-chat" class="flex-1 bg-gray-300 hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white py-2 rounded-lg">
+                    انصراف
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- اسکریپت‌های اصلی -->
+    <script>
+        // متغیرهای سراسری
+        const currentUser = {
+            username: "{{ username }}",
+            displayName: "{{ display_name }}"
+        };
+        
+        const currentRoom = 'global_chat_room';
+        let socket = null;
+        let typingTimeout = null;
+        let recordingTimer = null;
+        let recordingStartTime = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let peerConnection = null;
+        let localStream = null;
+        let activeCall = null;
+        let messageToEdit = null;
+        
+        // WebRTC configuration
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ]
+        };
+        
+        // تابع رنگ‌بندی برای نام کاربران
+        function getUsernameColor(username) {
+            const colors = [
+                'username-color-1', 'username-color-2', 'username-color-3',
+                'username-color-4', 'username-color-5', 'username-color-6',
+                'username-color-7', 'username-color-8'
+            ];
+            
+            // تولید عدد یکسان از رشته
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            
+            const index = Math.abs(hash) % colors.length;
+            return colors[index];
+        }
+        
+        // ایجاد نوتیفیکیشن
+        function showNotification(title, body, icon = 'fas fa-bell') {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, { body, icon });
+            }
+            
+            // نمایش نوتیفیکیشن در صفحه
+            const notification = document.createElement('div');
+            notification.className = 'notification fade-in';
+            notification.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4">
+                    <div class="flex items-center">
+                        <div class="text-blue-500 text-xl ml-3">
+                            <i class="${icon}"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-800 dark:text-white">${title}</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">${body}</div>
+                        </div>
+                        <button class="mr-auto text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            const container = document.getElementById('notification-container');
+            container.appendChild(notification);
+            
+            // حذف خودکار بعد از 5 ثانیه
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+            
+            // حذف با کلیک
+            notification.querySelector('button').addEventListener('click', () => {
+                notification.remove();
+            });
+        }
+        
+        // درخواست مجوز نوتیفیکیشن
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+        
+        // اتصال به Socket.IO
+        function connectSocket() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                socket.emit('join', {
+                    username: currentUser.username,
+                    room: currentRoom,
+                    is_private: false
+                });
+            });
+            
+            socket.on('room_users', (data) => {
+                updateOnlineUsers(data.users);
+            });
+            
+            socket.on('user_joined', (data) => {
+                showNotification('کاربر جدید', `${data.display_name} به چت پیوست`, 'fas fa-user-plus');
+            });
+            
+            socket.on('user_left', (data) => {
+                showNotification('خروج کاربر', `${data.username} از چت خارج شد`, 'fas fa-user-minus');
+            });
+            
+            socket.on('user_typing', (data) => {
+                if (data.room === currentRoom && data.username !== currentUser.username) {
+                    const typingEl = document.getElementById('typing-indicator');
+                    if (data.is_typing) {
+                        typingEl.classList.remove('hidden');
+                        typingEl.innerHTML = `
+                            <span class="typing-indicator">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </span>
+                            ${data.display_name} در حال تایپ...
+                        `;
+                    } else {
+                        typingEl.classList.add('hidden');
+                    }
+                }
+            });
+            
+            socket.on('new_message', (data) => {
+                if (data.room === currentRoom) {
+                    addMessageToChat(data);
+                    
+                    // نوتیفیکیشن اگر پنجره فعال نباشد
+                    if (document.hidden && data.username !== currentUser.username) {
+                        showNotification(data.display_name, data.message, 'fas fa-comment');
+                    }
+                }
+            });
+            
+            socket.on('message_edited', (data) => {
+                if (data.room === currentRoom) {
+                    updateMessage(data.message_id, data.content);
+                }
+            });
+            
+            socket.on('message_deleted', (data) => {
+                if (data.room === currentRoom) {
+                    deleteMessage(data.message_id);
+                }
+            });
+            
+            socket.on('incoming_call', (data) => {
+                showCallAlert(data);
+            });
+            
+            socket.on('call_accepted', (data) => {
+                if (activeCall) {
+                    showNotification('تماس پاسخ داده شد', `${data.answerer_name} به تماس پیوست`, 'fas fa-phone');
+                }
+            });
+            
+            socket.on('call_rejected', (data) => {
+                if (activeCall) {
+                    showNotification('تماس رد شد', `${data.answerer_name} تماس را رد کرد`, 'fas fa-phone-slash');
+                    endCall();
+                }
+            });
+            
+            socket.on('call_ended', (data) => {
+                showNotification('تماس پایان یافت', `تماس توسط ${data.ended_by_name} پایان یافت`, 'fas fa-phone-slash');
+                endCall();
+            });
+            
+            socket.on('rtc_signal', (data) => {
+                handleRTCSignal(data);
+            });
+            
+            socket.on('notification', (data) => {
+                if (data.from !== currentUser.username) {
+                    showNotification(data.title, data.body);
+                }
+            });
+            
+            socket.on('user_online', (data) => {
+                if (data.username !== currentUser.username) {
+                    addOnlineUser(data.username);
+                }
+            });
+            
+            socket.on('user_offline', (data) => {
+                if (data.username !== currentUser.username) {
+                    removeOnlineUser(data.username);
+                }
+            });
+        }
+        
+        // اضافه کردن پیام به چت
+        function addMessageToChat(message) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message mb-4 fade-in ${message.username === currentUser.username ? 'message-self' : 'message-other'}`;
+            messageDiv.id = `message-${message.id}`;
+            
+            // اگر ریپلای دارد
+            let replyHTML = '';
+            if (message.reply_to) {
+                replyHTML = `
+                    <div class="message-reply">
+                        <i class="fas fa-reply text-xs ml-1"></i>
+                        ${message.reply_to}
+                    </div>
+                `;
+            }
+            
+            // اگر حذف شده
+            if (message.deleted) {
+                messageDiv.innerHTML = `
+                    <div class="p-3 text-gray-500 dark:text-gray-400 italic">
+                        <i class="fas fa-trash-alt ml-1"></i> این پیام حذف شده است
+                    </div>
+                `;
+            } else {
+                // محتوای پیام بر اساس نوع
+                let contentHTML = '';
+                if (message.type === 'text') {
+                    contentHTML = `<div class="whitespace-pre-wrap">${escapeHtml(message.message)}</div>`;
+                } else if (message.type === 'image') {
+                    contentHTML = `<img src="${message.message}" class="max-w-full rounded-lg cursor-pointer" onclick="openImageModal('${message.message}')">`;
+                } else if (message.type === 'audio') {
+                    contentHTML = `
+                        <audio controls class="w-full">
+                            <source src="${message.message}" type="audio/webm">
+                            مرورگر شما از پخش صوت پشتیبانی نمی‌کند.
+                        </audio>
+                    `;
+                } else if (message.type === 'file') {
+                    contentHTML = `
+                        <div class="p-2 border rounded flex items-center">
+                            <i class="fas fa-file ml-2 text-blue-500"></i>
+                            <div>
+                                <div class="font-medium">فایل ضمیمه</div>
+                                <a href="${message.message}" download class="text-sm text-blue-500 hover:underline">دانلود</a>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // اطلاعات پیام
+                const time = new Date(message.timestamp).toLocaleTimeString('fa-IR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                messageDiv.innerHTML = `
+                    ${replyHTML}
+                    <div class="p-3">
+                        ${message.username !== currentUser.username ? 
+                            `<div class="font-bold mb-1 ${getUsernameColor(message.username)}">
+                                <i class="fas fa-user-circle ml-1"></i>
+                                ${message.display_name}
+                            </div>` : ''}
+                        ${contentHTML}
+                        <div class="flex justify-between items-center mt-2">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                ${time}
+                                ${message.edited ? '<span class="mr-2">(ویرایش شده)</span>' : ''}
+                            </div>
+                            <div class="flex gap-2">
+                                ${message.username === currentUser.username ? `
+                                    <button class="edit-message text-xs text-blue-500 hover:text-blue-700" data-id="${message.id}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="delete-message text-xs text-red-500 hover:text-red-700" data-id="${message.id}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="reply-message text-xs text-green-500 hover:text-green-700" data-id="${message.id}">
+                                    <i class="fas fa-reply"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+            
+            // اضافه کردن event listeners برای دکمه‌ها
+            if (!message.deleted) {
+                const editBtn = messageDiv.querySelector('.edit-message');
+                const deleteBtn = messageDiv.querySelector('.delete-message');
+                const replyBtn = messageDiv.querySelector('.reply-message');
+                
+                if (editBtn) {
+                    editBtn.addEventListener('click', () => startEditMessage(message.id, message.message));
+                }
+                
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', () => deleteMessageRequest(message.id));
+                }
+                
+                if (replyBtn) {
+                    replyBtn.addEventListener('click', () => startReply(message.id, message.message));
+                }
+            }
+        }
+        
+        // بروزرسانی پیام ویرایش شده
+        function updateMessage(messageId, newContent) {
+            const messageDiv = document.getElementById(`message-${messageId}`);
+            if (messageDiv) {
+                const contentDiv = messageDiv.querySelector('.whitespace-pre-wrap');
+                if (contentDiv) {
+                    contentDiv.textContent = newContent;
+                }
+                
+                // اضافه کردن علامت ویرایش شده
+                const timeDiv = messageDiv.querySelector('.text-xs');
+                if (timeDiv && !timeDiv.innerHTML.includes('ویرایش شده')) {
+                    timeDiv.innerHTML += '<span class="mr-2">(ویرایش شده)</span>';
+                }
+            }
+        }
+        
+        // حذف پیام از نمایش
+        function deleteMessage(messageId) {
+            const messageDiv = document.getElementById(`message-${messageId}`);
+            if (messageDiv) {
+                messageDiv.innerHTML = `
+                    <div class="p-3 text-gray-500 dark:text-gray-400 italic">
+                        <i class="fas fa-trash-alt ml-1"></i> این پیام حذف شده است
+                    </div>
+                `;
+            }
+        }
+        
+        // شروع ریپلای
+        function startReply(messageId, messageContent) {
+            document.getElementById('active-reply').classList.remove('hidden');
+            document.getElementById('reply-preview').textContent = messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '');
+            document.getElementById('message-input').dataset.replyTo = messageId;
+            document.getElementById('message-input').focus();
+        }
+        
+        // شروع ویرایش
+        function startEditMessage(messageId, messageContent) {
+            messageToEdit = messageId;
+            document.getElementById('active-edit').classList.remove('hidden');
+            document.getElementById('edit-preview').textContent = messageContent.substring(0, 50) + (messageContent.length > 50 ? '...' : '');
+            document.getElementById('message-input').value = messageContent;
+            document.getElementById('message-input').focus();
+        }
+        
+        // درخواست حذف پیام
+        function deleteMessageRequest(messageId) {
+            if (confirm('آیا از حذف این پیام اطمینان دارید؟')) {
+                fetch(`/api/messages/${messageId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.ok) {
+                        alert(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        }
+        
+        // ارسال پیام
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message && !messageToEdit) return;
+            
+            if (messageToEdit) {
+                // ویرایش پیام
+                fetch(`/api/messages/${messageToEdit}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: message })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        input.value = '';
+                        document.getElementById('active-edit').classList.add('hidden');
+                        messageToEdit = null;
+                    } else {
+                        alert(data.error);
+                    }
+                });
+            } else {
+                // ارسال پیام جدید
+                const replyTo = input.dataset.replyTo;
+                
+                socket.emit('send_message', {
+                    username: currentUser.username,
+                    room: currentRoom,
+                    message: message,
+                    reply_to: replyTo,
+                    type: 'text'
+                });
+                
+                input.value = '';
+                if (replyTo) {
+                    document.getElementById('active-reply').classList.add('hidden');
+                    delete input.dataset.replyTo;
+                }
+            }
+            
+            // پاک کردن وضعیت تایپ
+            socket.emit('typing', {
+                username: currentUser.username,
+                room: currentRoom,
+                is_typing: false
+            });
+        }
+        
+        // مدیریت تایپ کردن
+        function handleTyping() {
+            const input = document.getElementById('message-input');
+            
+            socket.emit('typing', {
+                username: currentUser.username,
+                room: currentRoom,
+                is_typing: true
+            });
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', {
+                    username: currentUser.username,
+                    room: currentRoom,
+                    is_typing: false
+                });
+            }, 1500);
+        }
+        
+        // شروع تماس
+        function startCall(type) {
+            if (!activeCall) {
+                socket.emit('start_call', {
+                    caller: currentUser.username,
+                    room: currentRoom,
+                    type: type
+                });
+                
+                activeCall = {
+                    type: type,
+                    startedAt: new Date(),
+                    participants: [currentUser.username]
+                };
+                
+                // نمایش دکمه پایان تماس
+                document.getElementById('end-call-btn').classList.remove('hidden');
+                
+                // شروع WebRTC
+                initWebRTC(type === 'video');
+            }
+        }
+        
+        // نمایش هشدار تماس ورودی
+        function showCallAlert(data) {
+            const alert = document.getElementById('call-alert');
+            document.getElementById('caller-name').textContent = data.caller_name;
+            document.getElementById('call-type').textContent = data.type === 'video' ? 'تماس تصویری' : 'تماس صوتی';
+            alert.classList.remove('hidden');
+            
+            // پخش صدای زنگ
+            const ringtone = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3');
+            ringtone.loop = true;
+            ringtone.play();
+            
+            // ذخیره ringtone برای توقف بعدی
+            alert.dataset.ringtone = ringtone;
+            
+            // پاسخ به تماس
+            document.getElementById('accept-call').onclick = () => {
+                ringtone.pause();
+                alert.classList.add('hidden');
+                
+                socket.emit('answer_call', {
+                    answerer: currentUser.username,
+                    room: currentRoom,
+                    accept: true
+                });
+                
+                activeCall = {
+                    type: data.type,
+                    startedAt: new Date(),
+                    participants: [currentUser.username, data.caller]
+                };
+                
+                // شروع WebRTC
+                initWebRTC(data.type === 'video');
+            };
+            
+            // رد تماس
+            document.getElementById('reject-call').onclick = () => {
+                ringtone.pause();
+                alert.classList.add('hidden');
+                
+                socket.emit('answer_call', {
+                    answerer: currentUser.username,
+                    room: currentRoom,
+                    accept: false
+                });
+            };
+            
+            // توقف خودکار بعد از 30 ثانیه
+            setTimeout(() => {
+                if (!alert.classList.contains('hidden')) {
+                    ringtone.pause();
+                    alert.classList.add('hidden');
+                    
+                    socket.emit('answer_call', {
+                        answerer: currentUser.username,
+                        room: currentRoom,
+                        accept: false
+                    });
+                }
+            }, 30000);
+        }
+        
+        // پایان تماس
+        function endCall() {
+            if (activeCall) {
+                socket.emit('end_call', {
+                    username: currentUser.username,
+                    room: currentRoom
+                });
+                
+                // توقف جریان‌های مدیا
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                    localStream = null;
+                }
+                
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                
+                // مخفی کردن ویدیوها
+                document.getElementById('video-container').classList.add('hidden');
+                document.getElementById('end-call-btn').classList.add('hidden');
+                
+                activeCall = null;
+            }
+        }
+        
+        // WebRTC
+        async function initWebRTC(video = false) {
+            try {
+                // گرفتن جریان مدیا
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: video
+                });
+                
+                // نمایش ویدیو محلی
+                if (video) {
+                    const localVideo = document.getElementById('local-video');
+                    localVideo.srcObject = localStream;
+                    document.getElementById('video-container').classList.remove('hidden');
+                }
+                
+                // ایجاد اتصال Peer
+                peerConnection = new RTCPeerConnection(rtcConfig);
+                
+                // اضافه کردن ترک‌های محلی
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+                
+                // دریافت جریان راه دور
+                peerConnection.ontrack = (event) => {
+                    const remoteVideo = document.getElementById('remote-video');
+                    remoteVideo.srcObject = event.streams[0];
+                };
+                
+                // ارسال ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit('rtc_signal', {
+                            to: getOtherParticipants()[0],
+                            signal: event.candidate,
+                            type: 'candidate'
+                        });
+                    }
+                };
+                
+                // اگر ما تماس‌گیرنده هستیم، ایجاد offer
+                if (activeCall && activeCall.participants.length === 1) {
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    
+                    socket.emit('rtc_signal', {
+                        to: getOtherParticipants()[0],
+                        signal: offer,
+                        type: 'offer'
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error initializing WebRTC:', error);
+                showNotification('خطا', 'دسترسی به دوربین/میکروفون ممکن نیست', 'fas fa-exclamation-triangle');
+            }
+        }
+        
+        // پردازش سیگنال‌های WebRTC
+        async function handleRTCSignal(data) {
+            if (!peerConnection) {
+                await initWebRTC(activeCall?.type === 'video');
+            }
+            
+            try {
+                switch (data.type) {
+                    case 'offer':
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal));
+                        const answer = await peerConnection.createAnswer();
+                        await peerConnection.setLocalDescription(answer);
+                        
+                        socket.emit('rtc_signal', {
+                            to: data.from,
+                            signal: answer,
+                            type: 'answer'
+                        });
+                        break;
+                        
+                    case 'answer':
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal));
+                        break;
+                        
+                    case 'candidate':
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.signal));
+                        break;
+                }
+            } catch (error) {
+                console.error('Error handling RTC signal:', error);
+            }
+        }
+        
+        // گرفتن لیست سایر شرکت‌کنندگان
+        function getOtherParticipants() {
+            if (!activeCall) return [];
+            return activeCall.participants.filter(p => p !== currentUser.username);
+        }
+        
+        // ضبط صوت
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await sendAudioMessage(audioBlob);
+                    
+                    // توقف جریان
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                recordingStartTime = Date.now();
+                
+                // نمایش وضعیت ضبط
+                document.getElementById('recording-status').classList.remove('hidden');
+                updateRecordingTimer();
+                
+                // تایمر
+                recordingTimer = setInterval(updateRecordingTimer, 1000);
+                
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                showNotification('خطا', 'دسترسی به میکروفون ممکن نیست', 'fas fa-microphone-slash');
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                clearInterval(recordingTimer);
+                document.getElementById('recording-status').classList.add('hidden');
+            }
+        }
+        
+        function updateRecordingTimer() {
+            if (recordingStartTime) {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('recording-timer').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        async function sendAudioMessage(audioBlob) {
+            const formData = new FormData();
+            formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    socket.emit('send_message', {
+                        username: currentUser.username,
+                        room: currentRoom,
+                        message: data.url,
+                        type: 'audio'
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending audio:', error);
+            }
+        }
+        
+        // آپلود فایل
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    socket.emit('send_message', {
+                        username: currentUser.username,
+                        room: currentRoom,
+                        message: data.url,
+                        type: data.type
+                    });
+                }
+            } catch (error) {
+                console.error('Error uploading file:', error);
+            }
+        }
+        
+        // ابزارهای کمکی
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function scrollToBottom() {
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function updateOnlineUsers(users) {
+            const onlineCount = users.length;
+            document.getElementById('room-user-count').textContent = onlineCount;
+            document.getElementById('online-count').textContent = onlineCount;
+        }
+        
+        function addOnlineUser(username) {
+            // این تابع را با منطق خودت پر کن
+        }
+        
+        function removeOnlineUser(username) {
+            // این تابع را با منطق خودت پر کن
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // اتصال سوکت
+            connectSocket();
+            
+            // ارسال پیام
+            document.getElementById('send-btn').addEventListener('click', sendMessage);
+            document.getElementById('message-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // تایپ کردن
+            document.getElementById('message-input').addEventListener('input', handleTyping);
+            
+            // لغو ریپلای
+            document.getElementById('cancel-reply').addEventListener('click', () => {
+                document.getElementById('active-reply').classList.add('hidden');
+                delete document.getElementById('message-input').dataset.replyTo;
+            });
+            
+            // لغو ویرایش
+            document.getElementById('cancel-edit').addEventListener('click', () => {
+                document.getElementById('active-edit').classList.add('hidden');
+                document.getElementById('message-input').value = '';
+                messageToEdit = null;
+            });
+            
+            // تماس‌ها
+            document.getElementById('voice-call-btn').addEventListener('click', () => startCall('audio'));
+            document.getElementById('video-call-btn').addEventListener('click', () => startCall('video'));
+            document.getElementById('end-call-btn').addEventListener('click', endCall);
+            
+            // ضبط صوت
+            const recordBtn = document.getElementById('record-audio-btn');
+            let isRecording = false;
+            
+            recordBtn.addEventListener('mousedown', () => {
+                isRecording = true;
+                startRecording();
+            });
+            
+            recordBtn.addEventListener('mouseup', () => {
+                if (isRecording) {
+                    stopRecording();
+                    isRecording = false;
+                }
+            });
+            
+            recordBtn.addEventListener('mouseleave', () => {
+                if (isRecording) {
+                    stopRecording();
+                    isRecording = false;
+                }
+            });
+            
+            // ارسال ضبط
+            document.getElementById('send-recording').addEventListener('click', () => {
+                stopRecording();
+            });
+            
+            // آپلود فایل
+            document.getElementById('attach-btn').addEventListener('click', () => {
+                document.getElementById('file-input').click();
+            });
+            
+            document.getElementById('file-input').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    uploadFile(e.target.files[0]);
+                    e.target.value = '';
+                }
+            });
+            
+            // ایموجی
+            document.getElementById('emoji-btn').addEventListener('click', () => {
+                const picker = document.querySelector('.emoji-picker');
+                picker.style.display = picker.style.display === 'block' ? 'none' : 'block';
+            });
+            
+            const emojiPicker = document.querySelector('emoji-picker');
+            if (emojiPicker) {
+                emojiPicker.addEventListener('emoji-click', (event) => {
+                    const input = document.getElementById('message-input');
+                    input.value += event.detail.unicode;
+                    input.focus();
+                });
+            }
+            
+            // استیکر
+            document.getElementById('sticker-btn').addEventListener('click', () => {
+                const picker = document.querySelector('.sticker-picker');
+                picker.style.display = picker.style.display === 'block' ? 'none' : 'block';
+            });
+            
+            document.querySelectorAll('.sticker-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const imgSrc = e.target.src;
+                    socket.emit('send_message', {
+                        username: currentUser.username,
+                        room: currentRoom,
+                        message: imgSrc,
+                        type: 'image'
+                    });
+                    document.querySelector('.sticker-picker').style.display = 'none';
+                });
+            });
+            
+            // تغییر تم
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                const body = document.body;
+                const currentTheme = body.classList.contains('dark-mode') ? 'dark' : 'light';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                body.classList.toggle('dark-mode');
+                
+                // ذخیره در سرور
+                fetch('/api/user/update_theme', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ theme: newTheme })
+                });
+            });
+            
+            // پنل ادمین
+            if (document.getElementById('admin-panel-toggle')) {
+                document.getElementById('admin-panel-toggle').addEventListener('click', () => {
+                    const panel = document.getElementById('admin-panel');
+                    panel.classList.toggle('hidden');
+                });
+                
+                document.getElementById('create-user-btn').addEventListener('click', () => {
+                    const username = document.getElementById('new-username').value.trim();
+                    const password = document.getElementById('new-password').value.trim();
+                    const displayName = document.getElementById('new-displayname').value.trim() || username;
+                    const isAdmin = document.getElementById('new-isadmin').checked;
+                    
+                    if (!username || !password) {
+                        document.getElementById('admin-message').innerHTML = 
+                            '<span class="text-red-500">نام کاربری و رمز عبور الزامی است</span>';
+                        return;
+                    }
+                    
+                    fetch('/api/admin/create_user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: username,
+                            password: password,
+                            display_name: displayName,
+                            is_admin: isAdmin
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const msgEl = document.getElementById('admin-message');
+                        if (data.ok) {
+                            msgEl.innerHTML = '<span class="text-green-500">کاربر با موفقیت ایجاد شد</span>';
+                            // پاک کردن فیلدها
+                            document.getElementById('new-username').value = '';
+                            document.getElementById('new-password').value = '';
+                            document.getElementById('new-displayname').value = '';
+                            document.getElementById('new-isadmin').checked = false;
+                        } else {
+                            msgEl.innerHTML = `<span class="text-red-500">${data.error}</span>`;
+                        }
+                    });
+                });
+            }
+            
+            // کلیک خارج برای بستن منوها
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#more-options') && !e.target.closest('#more-menu')) {
+                    document.getElementById('more-menu').classList.add('hidden');
+                }
+                
+                if (!e.target.closest('#emoji-btn') && !e.target.closest('emoji-picker')) {
+                    document.querySelector('.emoji-picker').style.display = 'none';
+                }
+                
+                if (!e.target.closest('#sticker-btn') && !e.target.closest('.sticker-picker')) {
+                    document.querySelector('.sticker-picker').style.display = 'none';
+                }
+            });
+            
+            // اسکرول به پایین
+            setTimeout(scrollToBottom, 500);
+        });
+    </script>
+</body>
+</html>
