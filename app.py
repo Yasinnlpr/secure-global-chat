@@ -19,7 +19,7 @@ ALLOWED_IMAGE_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 ALLOWED_AUDIO_EXT = {'wav', 'mp3', 'ogg', 'webm'}
 ALLOWED_FILE_EXT = {'pdf', 'txt', 'doc', 'docx'}
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ----------------------------
 # داده‌های درون‌حافظه (در تولید از دیتابیس استفاده کن)
