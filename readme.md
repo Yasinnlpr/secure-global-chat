@@ -1,1 +1,2 @@
-This entire project belongs to Mohammad Yasin Nilipour. Any illegal use and downloading of files from this project will be prosecuted. Copyright Laws!! This application is not open source!
+# secure-global-chat
+this project is not open source !!!
