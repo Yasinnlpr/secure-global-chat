@@ -1,3 +1,8 @@
+import eventlet
+eventlet.monkey_patch()
+
+import eventlet
+eventlet.monkey_patch()
 import os
 import uuid
 import json
@@ -151,7 +156,8 @@ def logout():
             if room_id in users_in_room:
                 users_in_room[room_id] = [u for u in users_in_room[room_id] if u['username'] != username]
         
-        socketio.emit('user_offline', {'username': username}, broadcast=True)
+        socketio.emit('user_offline', {'username': username}, broadcast=True, namespace='/')
+
     
     return redirect(url_for('login'))
 
